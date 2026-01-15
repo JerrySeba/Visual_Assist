@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Real-Time Visual Assistance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Accessible, high-contrast design -->
+  <style>
+    :root {
+      --bg: #020617;
+      --card: #020617;
+      --accent: #22c55e;
+      --accent-soft: rgba(34,197,94,0.15);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --danger: #fb7185;
+      --border: #1f2937;
+      --focus: #facc15;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #0f172a 0, #020617 50%, #020617 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+
+    .shell {
+      max-width: 1200px;
+      width: 100%;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 2.2fr 1.4fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: radial-gradient(circle at top left, #111827 0, #020617 60%);
+      border-radius: 24px;
+      border: 1px solid var(--border);
+      box-shadow: 0 18px 60px rgba(0,0,0,0.75);
+      padding: 20px 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background:
+        radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(34,197,94,0.14), transparent 55%);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .card-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    header.app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      background:
+        conic-gradient(from 190deg,
+          #22c55e,
+          #22c55e,
+          #38bdf8,
+          #6366f1,
+          #22c55e);
+      padding: 2px;
+    }
+
+    .brand-mark-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: #020617;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #22c55e;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .brand-text h1 {
+      font-size: 1.35rem;
+      margin: 0;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-text p {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(15,118,110,0.2);
+      border: 1px solid rgba(45,212,191,0.4);
+      font-size: 0.78rem;
+      color: #a5f3fc;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34,197,94,0.8);
+    }
+
+    .status-pill strong {
+      color: #e5e7eb;
+      font-weight: 600;
+    }
+
+    .status-pill span {
+      color: var(--muted);
+    }
+
+    .vision-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 14px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 900px) {
+      .vision-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel-label {
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .vision-main {
+      border-radius: 18px;
+      border: 1px solid rgba(15,23,42,0.8);
+      background: radial-gradient(circle at top left, rgba(15,23,42,0.9), #020617);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .video-frame {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(30,64,175,0.7);
+      background:
+        linear-gradient(135deg, rgba(30,64,175,0.5), rgba(5,150,105,0.3)),
+        #020617;
+      min-height: 210px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #d1d5db;
+    }
+
+    .video-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 20% 0, rgba(56,189,248,0.16), transparent 55%),
+        radial-gradient(circle at 80% 100%, rgba(34,197,94,0.18), transparent 50%);
+      mix-blend-mode: screen;
+    }
+
+    .video-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, rgba(15,23,42,0.7) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15,23,42,0.7) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.4;
+    }
+
+    .video-content {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 0 10px;
+    }
+
+    .video-caption {
+      font-size: 0.88rem;
+      color: #e5e7eb;
+      margin-top: 4px;
+    }
+
+    .video-caption span {
+      color: #a5b4fc;
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    button {
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.88rem;
+    }
+
+    .btn-primary {
+      position: relative;
+      border-radius: 999px;
+      padding: 8px 16px;
+      background: radial-gradient(circle at top left, #22c55e, #16a34a);
+      color: #020617;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow:
+        0 0 0 1px rgba(34,197,94,0.4),
+        0 16px 40px rgba(22,163,74,0.65);
+    }
+
+    .btn-primary::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      border: 1px solid rgba(250,250,249,0.4);
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .btn-ghost {
+      border-radius: 999px;
+      padding: 7px 14px;
+      background: rgba(15,23,42,0.9);
+      color: #e5e7eb;
+      border: 1px solid rgba(55,65,81,0.9);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .btn-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      color: #e5e7eb;
+      background: radial-gradient(circle at top, rgba(148,163,184,0.26), transparent 60%);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(55,65,81,0.7);
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34,197,94,0.8);
+    }
+
+    .insight-panel {
+      border-radius: 18px;
+      border: 1px dashed rgba(75,85,99,0.8);
+      background: radial-gradient(circle at top right, rgba(30,64,175,0.9), #020617);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .insight-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 0.78rem;
+    }
+
+    .chip {
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(75,85,99,0.9);
+      color: #d1d5db;
+    }
+
+    .chip span {
+      color: #a5b4fc;
+    }
+
+    .insight-text {
+      font-size: 0.86rem;
+      color: #e5e7eb;
+      line-height: 1.4;
+    }
+
+    .insight-text strong {
+      color: #22c55e;
+    }
+
+    .insight-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+
+    .assist-card {
+      margin-top: 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(55,65,81,0.9);
+      background: radial-gradient(circle at top left, rgba(79,70,229,0.5), rgba(15,23,42,0.95));
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .assist-steps {
+      font-size: 0.82rem;
+      color: #e5e7eb;
+    }
+
+    .assist-steps ol {
+      margin: 6px 0 0;
+      padding-left: 20px;
+    }
+
+    .assist-steps li {
+      margin-bottom: 3px;
+    }
+
+    .right-column-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .right-column-header h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .right-column-header span {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .tabs {
+      display: inline-flex;
+      border-radius: 999px;
+      border: 1px solid rgba(55,65,81,0.9);
+      padding: 2px;
+      background: rgba(15,23,42,0.95);
+      gap: 2px;
+    }
+
+    .tab {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .tab.active {
+      background: rgba(15,23,42,0.98);
+      color: #e5e7eb;
+      border: 1px solid rgba(148,163,184,0.8);
+    }
+
+    .list {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 260px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .list-item {
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: rgba(15,23,42,0.96);
+      border: 1px solid rgba(31,41,55,0.9);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.82rem;
+    }
+
+    .list-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pill {
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      background: rgba(15,118,110,0.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(34,197,94,0.4);
+    }
+
+    .pill-secondary {
+      background: rgba(30,64,175,0.25);
+      color: #a5b4fc;
+      border-color: rgba(129,140,248,0.6);
+    }
+
+    .item-meta {
+      font-size: 0.76rem;
+      color: var(--muted);
+    }
+
+    .item-text {
+      color: #e5e7eb;
+    }
+
+    .hotkeys {
+      margin-top: 10px;
+      border-radius: 12px;
+      border: 1px dashed rgba(75,85,99,0.9);
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      background: rgba(15,23,42,0.9);
+    }
+
+    .hotkeys kbd {
+      background: rgba(15,23,42,0.95);
+      border-radius: 5px;
+      border: 1px solid rgba(55,65,81,0.9);
+      padding: 2px 6px;
+      font-size: 0.75rem;
+      color: #e5e7eb;
+    }
+
+    /* Accessibility focus styles */
+    a:focus-visible,
+    button:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 3px;
+      box-shadow: 0 0 0 2px rgba(15,23,42,0.9);
+    }
+  </style>
+</head>
+<body>
+  <main class="shell" aria-label="Real-time visual assistance interface">
+    <!-- LEFT: Live assistance -->
+    <section class="card" aria-labelledby="assist-heading">
+      <div class="card-inner">
+        <header class="app-header">
+          <div class="brand">
+            <div class="brand-mark" aria-hidden="true">
+              <div class="brand-mark-inner">VA</div>
+            </div>
+            <div class="brand-text">
+              <h1 id="assist-heading">VisualAssist Classroom</h1>
+              <p>Real-time visual guidance for inclusive learning</p>
+            </div>
+          </div>
+          <div class="status-pill" aria-live="polite">
+            <span class="status-dot" aria-hidden="true"></span>
+            <strong>Ready</strong>
+            <span>Camera / Audio available</span>
+          </div>
+        </header>
+
+        <div class="vision-row">
+          <!-- Live view & controls -->
+          <div>
+            <div class="panel-label">Live visual context</div>
+            <div class="vision-main">
+              <div class="video-frame" role="group" aria-label="Live classroom view preview">
+                <div class="video-grid" aria-hidden="true"></div>
+                <div class="video-overlay" aria-hidden="true"></div>
+                <div class="video-content">
+                  <p aria-hidden="true">Camera preview placeholder</p>
+                  <p class="video-caption">
+                    Press <span>“Start Assistance”</span> to describe the board, slides, or surroundings.
+                  </p>
+                </div>
+              </div>
+
+              <div class="controls-row" aria-label="Assistance controls">
+                <button class="btn-primary" aria-label="Start live visual assistance">
+                  <span>●</span>
+                  Start Assistance
+                </button>
+                <button class="btn-ghost" aria-label="Read printed or handwritten text">
+                  <span>📝</span>
+                  Read Text
+                </button>
+                <button class="btn-ghost" aria-label="Explain diagrams or graphs in simple language">
+                  <span>📊</span>
+                  Explain Diagram
+                </button>
+                <button class="btn-ghost" aria-label="Describe people and obstacles around you">
+                  <span>🚶</span>
+                  Navigation & People
+                </button>
+              </div>
+
+              <div class="controls-row" aria-label="Voice and focus settings">
+                <button class="btn-icon" aria-label="Toggle microphone">
+                  🎙
+                </button>
+                <button class="btn-icon" aria-label="Toggle speaker output">
+                  🔊
+                </button>
+                <div class="badge" role="status">
+                  <span class="badge-dot" aria-hidden="true"></span>
+                  Live narration on • <span>2.1 s avg response</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Understanding panel -->
+          <aside aria-label="Understanding and guidance panel">
+            <div class="panel-label">Instant understanding</div>
+            <div class="insight-panel">
+              <div class="insight-chip-row" aria-hidden="true">
+                <span class="chip">Mode: <span>Board</span></span>
+                <span class="chip">Language: <span>English</span></span>
+                <span class="chip">Detail level: <span>Student-friendly</span></span>
+              </div>
+              <p class="insight-text">
+                <strong>Example output:</strong> “You are in a classroom. On the board there is a diagram of the water cycle with four labels: evaporation, condensation, precipitation, and collection. Your teacher is pointing to condensation.”
+              </p>
+              <div class="insight-meta">
+                <span aria-label="Estimated reading time">~ 8 seconds to listen</span>
+                <span aria-label="Latency">Latency: 1–3 s</span>
+              </div>
+            </div>
+
+            <div class="assist-card" aria-label="How to use this assistant">
+              <strong>How this helps you</strong>
+              <div class="assist-steps">
+                <ol>
+                  <li>Point your device at the board, slides, or textbook.</li>
+                  <li>Press <strong>Start Assistance</strong> or <strong>Read Text</strong>.</li>
+                  <li>Listen to a clear audio explanation in real time.</li>
+                  <li>Repeat or slow down explanations whenever needed.</li>
+                </ol>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: History, quick actions -->
+    <section class="card" aria-labelledby="history-heading">
+      <div class="card-inner">
+        <div class="right-column-header">
+          <div>
+            <h2 id="history-heading">Recent assistance</h2>
+            <span>Quickly revisit the last explanations</span>
+          </div>
+          <div class="tabs" role="tablist" aria-label="History view mode">
+            <button class="tab active" role="tab" aria-selected="true">Today</button>
+            <button class="tab" role="tab" aria-selected="false">This week</button>
+          </div>
+        </div>
+
+        <div class="list" aria-label="History of visual assistance">
+          <article class="list-item">
+            <div class="list-item-header">
+              <span class="pill">Board description</span>
+              <span class="item-meta">2 min ago • 24 s</span>
+            </div>
+            <p class="item-text">
+              Explained a physics graph comparing distance and time for two different objects.
+            </p>
+          </article>
+
+          <article class="list-item">
+            <div class="list-item-header">
+              <span class="pill pill-secondary">Text reading</span>
+              <span class="item-meta">8 min ago • 14 s</span>
+            </div>
+            <p class="item-text">
+              Read the question from page 42 of your math textbook and highlighted key numbers.
+            </p>
+          </article>
+
+          <article class="list-item">
+            <div class="list-item-header">
+              <span class="pill">Navigation</span>
+              <span class="item-meta">15 min ago • 10 s</span>
+            </div>
+            <p class="item-text">
+              Guided you from the classroom door to your usual seat, avoiding two bags on the floor.
+            </p>
+          </article>
+        </div>
+
+        <div class="hotkeys" aria-label="Keyboard shortcuts information">
+          <strong>Keyboard shortcuts</strong><br>
+          <kbd>Space</kbd> Start / pause assistance &nbsp;&nbsp;
+          <kbd>R</kbd> Read text &nbsp;&nbsp;
+          <kbd>D</kbd> Diagram explanation &nbsp;&nbsp;
+          <kbd>N</kbd> Navigation mode
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
