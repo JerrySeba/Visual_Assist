@@ -5,77 +5,92 @@ from flask_cors import CORS
 from google.cloud import vision
 from dotenv import load_dotenv
 
-# 1. Setup & Configuration
+# 1. Load Environment Variables
+# This will pick up GOOGLE_APPLICATION_CREDENTIALS and PORT from your .env file
 load_dotenv()
+
 app = Flask(__name__)
-CORS(app) # Allows your HTML/Android frontend to talk to this server
+# Enable CORS so your frontend index.html can communicate with this API
+CORS(app)
 
-# Initialize Google Vision Client
-# It automatically looks for the GOOGLE_APPLICATION_CREDENTIALS env var
-client = vision.ImageAnnotatorClient()
+# 2. Initialize Google Vision Client
+# The SDK automatically uses the path provided in GOOGLE_APPLICATION_CREDENTIALS
+try:
+    vision_client = vision.ImageAnnotatorClient()
+    print("✅ Vision AI client initialized successfully.")
+except Exception as e:
+    print(f"❌ Failed to initialize Vision client: {e}")
 
-# 2. Helper Function: Process Image based on Mode
 def analyze_image(image_content, mode):
+    """
+    Core logic to handle different classroom assistance modes.
+    """
     image = vision.Image(content=image_content)
     
     if mode == 'text':
-        # OCR Mode: For "Read Text" button
-        response = client.text_detection(image=image)
+        # OCR Mode for "Read Text" button
+        response = vision_client.text_detection(image=image)
         annotations = response.text_annotations
         return annotations[0].description if annotations else "No text detected."
 
     elif mode == 'diagram':
-        # Label/Object Detection: For "Explain Diagram" button
-        # We combine Labels and Objects to "understand" the diagram
-        response = client.label_detection(image=image)
+        # Label detection to help explain charts/diagrams
+        response = vision_client.label_detection(image=image)
         labels = [label.description for label in response.label_annotations]
-        return f"This looks like a diagram containing: {', '.join(labels[:5])}."
+        if not labels:
+            return "I cannot identify the elements in this diagram."
+        return f"This diagram contains: {', '.join(labels[:5])}."
 
     elif mode == 'navigation':
-        # Object Detection: For "Navigation & People" button
-        response = client.object_localization(image=image)
+        # Object localization for "Navigation & People" button
+        response = vision_client.object_localization(image=image)
         objects = [obj.name for obj in response.localized_object_annotations]
         if not objects:
             return "The path ahead looks clear."
         return f"I see the following in your path: {', '.join(set(objects))}."
 
-    return "Unknown mode selected."
+    return "Invalid assistance mode selected."
 
 # 3. API Endpoints
 @app.route('/api/assist', methods=['POST'])
 def assist():
     try:
-        # Check if image and mode are provided
+        # Validate that the request has both an image and a mode
         if 'image' not in request.files or 'mode' not in request.form:
-            return jsonify({"error": "Missing image or mode"}), 400
+            return jsonify({
+                "status": "error", 
+                "message": "Missing image file or assistance mode"
+            }), 400
 
         image_file = request.files['image']
-        mode = request.form['mode'] # 'text', 'diagram', or 'navigation'
+        mode = request.form['mode']
         
-        print(f"Processing request in {mode} mode...")
-        
-        # Read file into memory
+        # Read the image binary data
         content = image_file.read()
         
-        # Get AI Insights
-        result_text = analyze_image(content, mode)
+        # Process image via Google Vision AI
+        description = analyze_image(content, mode)
         
         return jsonify({
             "status": "success",
             "mode": mode,
-            "description": result_text,
-            "timestamp": "Just now"
+            "description": description
         })
 
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        print(f"Server Error: {str(e)}")
+        return jsonify({
+            "status": "error", 
+            "message": "An internal server error occurred."
+        }), 500
 
 @app.route('/status', methods=['GET'])
-def status():
-    return jsonify({"server": "active", "model": "Google Vision V1"})
+def health_check():
+    return jsonify({"status": "active", "service": "VisualAssist Backend"})
 
+# 4. Start Server
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 3000))
-    print(f"🚀 VisualAssist Backend running on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=True)
+    # Uses PORT from .env (3000) or defaults to 5000 
+    server_port = int(os.getenv('PORT', 3000))
+    print(f"🚀 VisualAssist Server running on http://localhost:{server_port}")
+    app.run(host='0.0.0.0', port=server_port, debug=True)
